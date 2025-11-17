@@ -25,9 +25,7 @@ class Trainer:
         self.eta = eta
         self.n_iter = n_iter
 
-     #--------------------------------------------------------------------------------------------------------
-    #Cross-Validation Method taken from Gemini; how can i work on this and adapt it myself??
-    #--------------------------------------------------------------------------------------------------------
+    #Cross-Validation Method
 
     def cross_validate(self, X, y, n_splits=5): ###should this split be done outside the trainer class and instead in the input file??
         '''
@@ -85,11 +83,8 @@ class Trainer:
         print(f'\nAverage CV Loss across {n_splits} folds: {avg_loss:.6f}')
         return avg_loss, all_fold_losses
 
-    #--------------------------------------------------------------------------------------------------------
     #End of Cross-Validation Method
-    #--------------------------------------------------------------------------------------------------------
     
-
     def optim_selection(self):
         '''
         Methods to choose which optimisation algorithm to use for the training
