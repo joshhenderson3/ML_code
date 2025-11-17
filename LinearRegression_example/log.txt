@@ -1,0 +1,17 @@
+### Log file ###
+
+ML model used: linear_regression
+
+Initial Parameters:
+Weights: [[0.4211161054329188], [0.7696858122970617], [0.5961148994280344], [0.9167497606073852]]
+Bias: [[0.07729673370124457]]
+
+Training algorithm: SGD
+
+Hyperparameters:
+Eta: 1e-08
+Training results:
+
+Weights: [[-0.04540890496344007], [0.7695977858095082], [0.5423442982418801], [0.9102651494707642]]
+Bias: [[0.07711711978892229]]
+Loss function value after 60 iterations is : 8269.189586332248
