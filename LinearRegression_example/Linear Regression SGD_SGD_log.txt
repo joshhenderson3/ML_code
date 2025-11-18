@@ -1,0 +1,21 @@
+### Log file ###
+
+ML model used: Linear Regression SGD
+
+Initial Parameters:
+Parameter 0 (shape: [4, 1]):
+[[0.4211161054329188], [0.7696858122970617], [0.5961148994280344], [0.9167497606073852]]
+Parameter 1 (shape: [1, 1]):
+[[0.07729673370124457]]
+
+Training algorithm: SGD
+
+Hyperparameters:
+Eta: 1e-08
+Training results:
+
+Parameter 0 (shape: [4, 1]):
+[[-0.036806121988228545], [0.7696824242763014], [0.43761240223257575], [0.8997020086947696]]
+Parameter 1 (shape: [1, 1]):
+[[0.07676487785475546]]
+Loss function value after 500 iterations is : 5725.32225672716
