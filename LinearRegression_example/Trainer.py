@@ -5,6 +5,7 @@ from torch import nn
 import torch.optim as optim
 from sklearn.model_selection import KFold # <-- NEW IMPORT
 from Models import LinearRegression
+from Models import NeuralNetwork
 
 class Trainer:
     '''
@@ -91,12 +92,12 @@ class Trainer:
         '''
         if self.name == 'SGD':
             
-            self.optimiser = optim.SGD(self.model_obj.parameters,self.eta)
+            self.optimiser = optim.SGD(self.model_obj.train_parameters,self.eta)
             print('The optimiser is Stochastic Gradient Descent')
 
         elif self.name == 'Adam':
 
-            self.optimiser = optim.Adam(self.model_obj.parameters,self.eta)
+            self.optimiser = optim.Adam(self.model_obj.train_parameters,self.eta)
             print('The optimiser is Adam')
             
         return self
@@ -127,13 +128,96 @@ class Trainer:
     
     def gd_optim(self,X,y):
         '''
+        Method for gradient descent training used by trainer2 for comparison
+        '''
+
+        self.losses = []
+
+        # Check if the model is Linear Regression
+        if isinstance(self.model_obj, LinearRegression):
+
+            # Use original weights and bias which exist in Linear Regression
+            W = self.model_obj.weights
+            B = self.model_obj.bias
+
+            # Enable gradients once before the loop starts
+            # This is critical for building the computation graph
+            W.requires_grad_(True)
+            B.requires_grad_(True)
+
+            for i in range(self.n_iter):
+
+                # Initialise gradients to zero before loop
+                if W.grad is not None:
+                    W.grad.zero_()
+                if B.grad is not None:
+                    B.grad.zero_()
+
+                # 1. Forward Pass
+                y_pred = self.model_obj.net_input(X)
+
+                # 2. Compute loss
+                loss = torch.mean((y_pred - y) ** 2)
+                self.losses.append(loss.detach().numpy())
+
+                # 3. Backward Pass
+                loss.backward()
+
+                # 4. Update Weights
+                with torch.no_grad():
+                    W -= self.eta * W.grad
+                    B -= self.eta * B.grad
+
+                if i % 10 == 0:
+                    print(f'Iteration: {i:03d}, Loss: {loss.item():.6f}')
+
+        else:
+            # Neural Network Case
+
+            # Use train_parameters, essential for NN
+            for param in self.model_obj.train_parameters:
+                param.requires_grad_(True)
+
+            for i in range(self.n_iter):
+
+                # 1. Zero out gradients before computing losses
+                # Stops gradient accumulation
+                for param in self.model_obj.train_parameters:
+                    if param.grad is not None:
+                        param.grad.zero_()
+
+                # 2. Forward Pass
+                y_pred = self.model_obj.net_input(X)
+
+                # 3. Compute Loss
+                loss = torch.mean((y_pred - y) ** 2)
+                self.losses.append(loss.detach().numpy())
+
+                # 4. Backward Pass
+                loss.backward()
+
+                # 5. Update Weights (GD Step)
+                with torch.no_grad():
+                    for param in self.model_obj.train_parameters:
+                        param -= self.eta * param.grad
+
+
+                if i % 10 == 0: # print progress every 10 iterations
+                    print(f'Iteration: {i:03d}, Loss: {loss.item():.6f}')
+        
+        return self
+
+
+        # Does not work with Neural Network Implementation
+        
+        '''
         Method that train the ML model using gradient descent as implemented in PyTorch
         Parameters
         ----------
         X (torch tensor): dim = nxm with n number of points (rows) and m number of features (columns)
         y (torch tensor): dim = nx1 with n number of labeled points
         '''
-        
+        '''
         self.model_obj.weights.requires_grad_(False)
         self.model_obj.bias.requires_grad_(False)
         self.losses = [] # losses array initialisation
@@ -149,4 +233,5 @@ class Trainer:
             self.losses.append(loss)
 
         return self
+        '''
 
