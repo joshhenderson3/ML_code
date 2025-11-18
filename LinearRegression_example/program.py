@@ -1,5 +1,6 @@
 from FeaturesExtraction import FeaturesExtraction
 from Models import LinearRegression
+from Models import NeuralNetwork # Importing NeuralNetwork class
 from Trainer import Trainer
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,6 +17,8 @@ inp_read = inp.yml_reader()
 eta = inp_read.content['eta']
 n_iter = inp_read.content['n_iter']
 random_state = inp_read.content['random_state']
+model_name = inp_read.content['model'] # 'LinearRegression' or 'NeuralNetwork'
+model_arch = inp_read.content.get('architecture', None) # Get architecture if it exists, NN only
 
 # Extracting features and labels
 features_extract = FeaturesExtraction(inp_read.content['datafile_name']) # creating class instance
@@ -38,12 +41,27 @@ X_train, X_test, y_train, y_test = features_extract.data_split(
 )
 
 # Model
-lr_model1 = LinearRegression(inp_read.content['model'], X_train, random_state) # instance of a linear regression model
-lr_model2 = LinearRegression(inp_read.content['model'],X_train, random_state) # other instance only for demonstartion purposes
+#hashed#lr_model1 = LinearRegression(inp_read.content['model'], X_train, random_state) # instance of a linear regression model
+#hashed#lr_model2 = LinearRegression(inp_read.content['model'],X_train, random_state) # other instance only for demonstartion purposes
+if model_name.lower() == 'linear_regression':
+    ml_model1 = LinearRegression('Linear Regression SGD', X_train, random_state) # instance of a linear regression model
+    ml_model2 = LinearRegression('Linear Regression GD', X_train, random_state) # other instance only for demonstartion purposes
+
+elif model_name.lower() == 'neural_network':
+    if model_arch is None:
+        raise ValueError("Architecture must be specified for Neural Network model in input.yml")
+    # Prepend the input feature size to the architecture
+    input_size = X_train.shape[1]
+    full_arch = [input_size] + model_arch[1:] # Ensure input layer size matches feature count
+
+    ml_model1 = NeuralNetwork(model_name, X_train, random_state, full_arch)
+    # Create a second instance for GD training plot
+    ml_model2 = NeuralNetwork(model_name, X_train, random_state, full_arch)
 
 # Training
-trainer1 = Trainer(inp_read.content['trainer'],lr_model1,inp_read.content['eta'],inp_read.content['n_iter']) # instance of training class
-trainer2 = Trainer('GD_Custom',lr_model2,inp_read.content['eta'],inp_read.content['n_iter'])
+trainer1 = Trainer(inp_read.content['trainer'],ml_model1,inp_read.content['eta'],inp_read.content['n_iter']) # instance of training class
+trainer2 = Trainer('GD_Custom',ml_model2,inp_read.content['eta'],inp_read.content['n_iter'])
+# lr_model changed to ml_model
 
 # --- START CROSS-VALIDATION ---
 print("\n*** Starting Cross-Validation for SGD Model Performance Estimate ***")
@@ -55,14 +73,14 @@ print(f"Final Average Cross-Validation Loss (5-Fold MSE): {avg_cv_loss:.6f}")
 #[labs, feats] = features_extract.feature_extraction(label_name,names)
 #[labs2, feats2] = features_extract.feature_extraction(label_name,names)
 
-log = Logger(lr_model1,trainer1)
+log = Logger(ml_model1,trainer1) # lr_model changed to ml_model
 log.log('w')
 
 train1 = trainer1.training(X_train, y_train) # stochastic gradient descent training
 train2 = trainer2.gd_optim(X_train, y_train) # gradient descent training
 
 # Second part of the log file
-log = Logger(lr_model1, trainer1)
+log = Logger(ml_model1, trainer1) # lr_model changed to ml_model
 log.log('a')
 
 # Plot of the training
@@ -71,19 +89,20 @@ fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(10, 4))
 #Plot SDG Loss, using results from the train1
 ax[0].plot(range(1, len(train1.losses) + 1), np.log10(train1.losses), marker='o')
 ax[0].set_xlabel('Number of iter')
-ax[0].set_ylabel('log(Mean squared error)')
-ax[0].set_title(f'Stocastic gradient descent')
+ax[0].set_ylabel('Log(Mean Squared Error)')
+ax[0].set_title(f'Stocastic Gradient Descent for {model_name}') #model_name used here
 
 #Plot GD Loss, using results from train2
 ax[1].plot(range(1, len(train2.losses) + 1), np.log10(train2.losses), marker='o')
 ax[1].set_xlabel('Number of iter')
-ax[1].set_ylabel('log(Mean squared error)')
-ax[1].set_title(f'gradient descent')
+ax[1].set_ylabel('Log(Mean Squared Error)')
+ax[1].set_title(f'Batch Gradient Descent for {model_name}') #model_name used here
 plt.show()
 
 # prediction of the model trained with a "good" learning rate
 #prediction = test1.predict(feats)
-prediction_test = lr_model1.predict(X_test) ##changed to predict on unseen testing data
+prediction_test = ml_model1.predict(X_test) ##changed to predict on unseen testing data
+# lr_model changed to ml_model
 
 #Convert Tensors to Numpy for plotting
 y_test_np = y_test.detach().numpy()
@@ -97,15 +116,16 @@ plt.scatter(y_test_np, prediction_test_np)
 
 #Plot the 1:1 line for visual reference: this line represents where the prediction = the true value
 plt.plot(np.linspace(min(y_test_np), max(y_test_np)), np.linspace(min(y_test_np), max(y_test_np)), color='r')
-plt.xlabel('true values')
-plt.ylabel('predicted values')
+plt.xlabel('True Values')
+plt.ylabel('Predicted Values')
 plt.grid()
-plt.title('Prediction vs True Values on Test Data, SGD Trained Model')
+plt.title('Prediction vs True Values on Test Data, {model_name} SGD Trained Model')
 plt.show()
+
 
 '''
 # Prediction of the model trained with stochastic gradient descent
-prediction = lr_model1.predict(feats)
+prediction = ml_model1.predict(feats)
 
 plt.scatter(labs,prediction.detach().numpy())
 plt.plot(np.linspace(0,70),np.linspace(0,70), color='r')
