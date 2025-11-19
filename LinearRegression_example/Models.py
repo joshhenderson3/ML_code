@@ -139,6 +139,7 @@ class NeuralNetwork(Models, nn.Module):
         '''
         return self.predict(X)
 
+# NEw: Support Vector Regression Child Class
 class SupportVectorRegression(Models):
     '''
     Child class for Support Vector Regression (SVR) model
@@ -187,7 +188,7 @@ class SupportVectorRegression(Models):
         self.model.fit(X_scaled, Y_scaled)
         print("SVR model fitted successfully.")
 
-        # Crucial for compatability: no PyTorch parameters to track/optimise
+        # Crucial for compatability: no PyTorch parameters to track/optimise, non-gradient based model
         self.train_parameters = []
 
     def net_input(self,X):
