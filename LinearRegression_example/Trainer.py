@@ -6,6 +6,7 @@ import torch.optim as optim
 from sklearn.model_selection import KFold # <-- NEW IMPORT
 from Models import LinearRegression
 from Models import NeuralNetwork
+from Models import SupportVectorRegression
 
 class Trainer:
     '''
@@ -25,6 +26,7 @@ class Trainer:
         self.model_obj = model_obj
         self.eta = eta
         self.n_iter = n_iter
+
 
     #Cross-Validation Method
 
@@ -51,37 +53,77 @@ class Trainer:
         #Convert PyTorch tensors to NumPy arrays for KFold to work easily
         X_np = X.detach().numpy()
         y_np = y.detach().numpy()
+
+        #NEW: identify the model class and check for SVR 
+        ModelClass = self.model_obj.__class__
+        is_svr = (ModelClass.__name__ == 'SupportVectorRegression')
+
+        #Ensure key parameters are stored for re-initialization, required for CV
+        if is_svr:
+            #Assumes svr_parameters, random state and model name are saved in Models.py
+            svr_params = self.model_obj.svr_params
+            random_state = self.model_obj.random_state
+
+        elif ModelClass.__name__ == 'NeuralNetwork':
+            #Assumes architecture is saved in Models.py
+            architecture = self.model_obj.architecture
+            random_state = self.model_obj.random_state
+        else: #Linear Regression Case
+            random_state = self.model_obj.seed
         
         print(f'Starting {n_splits}-Fold Cross-Validation...')
         
         for fold, (train_index, val_index) in enumerate(kf.split(X_np)):
             print(f'--- Fold {fold+1}/{n_splits} ---')
             
-            # 1. Split data for the current fold
+            # 1. Split data for current fold
             X_train_fold = torch.tensor(X_np[train_index], dtype=torch.double)
             y_train_fold = torch.tensor(y_np[train_index], dtype=torch.double)
             X_val_fold = torch.tensor(X_np[val_index], dtype=torch.double)
             y_val_fold = torch.tensor(y_np[val_index], dtype=torch.double)
-            
-            #2. Re-initialize model weights for a fair comparison in each fold
-            #Note: This is crucial for proper CV to avoid bias from previous folds.
-            #We rely on the model object having a 'seed' and 'X' attribute access.
-            new_model = LinearRegression(self.model_obj.name, X_train_fold, 234 + fold)
-            new_trainer = Trainer(self.name, new_model, self.eta, self.n_iter)
-            
-            #3. Train the model instance for the current fold
-            new_trainer.training(X_train_fold, y_train_fold)
-        
-            #4. Evaluate the model on the validation fold
+
+            # 2. Re-initialize model based on its class and run training
+            if is_svr:
+                # Model is fit in __init__ for SVR
+                new_model = ModelClass(
+                    self.model_obj.name,
+                    X_train_fold,
+                    y_train_fold,
+                    random_state + fold, #Use a different seed per fold
+                    svr_params
+                )
+
+                # No seperate new_trainer.training call needed for SVR
+
+            elif ModelClass.__name__ == 'NeuralNetwork':
+                new_model = ModelClass(
+                    self.model_obj.name,
+                    X_train_fold,
+                    random_state + fold, #Use a different seed per fold
+                    architecture
+                )
+                new_trainer = Trainer(self.name, new_model, self.eta, self.n_iter)
+                new_trainer.training(X_train_fold, y_train_fold)
+
+            else: #Linear Regression Case
+                new_model = ModelClass(
+                    self.model_obj.name,
+                    X_train_fold,
+                    random_state + fold #Use a different seed per fold
+                )
+                new_trainer = Trainer(self.name, new_model, self.eta, self.n_iter)
+                new_trainer.training(X_train_fold, y_train_fold)
+                # End of initialisation 
+
+            # 4. Evaluate the Model on the validation set
             with torch.no_grad():
                 output = new_model.predict(X_val_fold)
                 val_loss = criterion(output, y_val_fold).item()
-            
             all_fold_losses.append(val_loss)
-            print(f'Validation Loss: {val_loss:.6f}')
+            print(f'Fold {fold+1} Validation Loss (MSE): {val_loss:.6f}')
 
         avg_loss = np.mean(all_fold_losses)
-        print(f'\nAverage CV Loss across {n_splits} folds: {avg_loss:.6f}')
+        print(f'\nAverage Cross-Validation Loss {n_splits} folds (MSE): {avg_loss:.6f}')
         return avg_loss, all_fold_losses
 
     #End of Cross-Validation Method
@@ -110,6 +152,22 @@ class Trainer:
         X (torch tensor): dim = nxm with n number of points (rows) and m number of features (columns)
         y (torch tensor): dim = nx1 with n number of labeled points
         '''
+
+        #NEW: Dummy class to prevent plotting errors for non-gradient based models (SVR)
+        class DummyTrainer:
+            def __init__(self):
+                self.losses = [0,0] #Ensure len() is not zero for plotting
+            
+        #SVR Bypass Check
+        if not self.model_obj.train_parameters: # Check if train_parameters is empty (SVR case)
+            if self.model_obj.name == 'support_vector_regression':
+                print(f"Model '{self.model_obj.name}' is non gradient based (SVR). Skipping training.")
+                print("Skipping training process for SVR model.")
+                return DummyTrainer() # Return dummy trainer to avoid errors in plotting
+            else:
+                # handle unexpected case
+                raise ValueError(f"Model {self.model_obj.name} has no parameters but is not SVR.")
+        #End of SVR Bypass Check
         
         self.losses = [] # losses array initialisation
         criterion = nn.MSELoss() # loss function Mean Square Error
@@ -130,6 +188,18 @@ class Trainer:
         '''
         Method for gradient descent training used by trainer2 for comparison
         '''
+
+        #SVR Bypass Check
+        if not self.model_obj.train_parameters: # Check if train_parameters is empty (SVR case)
+            if self.model_obj.name == 'support_vector_regression':
+                print(f"Model '{self.model_obj.name}' is non gradient based (SVR). Skipping GD training.")
+                print("Skipping GD training process for SVR model.")
+                class DummyTrainer: 
+                    def __init__(self):
+                        self.losses = [0,0] #Ensure len() is not zero for plotting
+                return DummyTrainer() # Return dummy trainer to avoid errors in plotting
+        #End of SVR Bypass Check
+        
 
         self.losses = []
 
