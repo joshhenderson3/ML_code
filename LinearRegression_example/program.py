@@ -1,6 +1,7 @@
 from FeaturesExtraction import FeaturesExtraction
 from Models import LinearRegression
 from Models import NeuralNetwork # Importing NeuralNetwork class
+from Models import SupportVectorRegression # Importing the SVR class
 from Trainer import Trainer
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ import sklearn
 
 from InputReader import InputReader
 from Logger import Logger
+
 
 
 # Reading the input file (*.yml file)
@@ -58,6 +60,23 @@ elif model_name.lower() == 'neural_network':
     # Create a second instance for GD training plot
     ml_model2 = NeuralNetwork(model_name, X_train, random_state, full_arch)
 
+elif inp_read.content['model'] == 'support_vector_regression':
+    # Pass training data (X_train, y_train) and SVR parameters from input.yml
+
+    ml_model1 = SupportVectorRegression(
+        inp_read.content['model'],
+        X_train,
+        y_train,
+        inp_read.content['random_state'],
+        inp_read.content['svr_parameters']
+    )
+
+    ml_model2 = ml_model1 # SVR is non-gradient based; same instance used
+    # should avoid errors in rainer/logger classes
+
+else:
+    raise ValueError(f"Unsupported model type: {model_name}")
+
 # Training
 trainer1 = Trainer(inp_read.content['trainer'],ml_model1,inp_read.content['eta'],inp_read.content['n_iter']) # instance of training class
 trainer2 = Trainer('GD_Custom',ml_model2,inp_read.content['eta'],inp_read.content['n_iter'])
@@ -74,6 +93,9 @@ print(f"Final Average Cross-Validation Loss (5-Fold MSE): {avg_cv_loss:.6f}")
 #[labs2, feats2] = features_extract.feature_extraction(label_name,names)
 
 log = Logger(ml_model1,trainer1) # lr_model changed to ml_model
+
+# set calculated CV loss attribute in the logger object
+log.avg_cv_loss = float(avg_cv_loss)
 log.log('w')
 
 train1 = trainer1.training(X_train, y_train) # stochastic gradient descent training
