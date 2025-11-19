@@ -10,7 +10,7 @@ features:
 
 label: CO2-uptake-(mmol/g)
 
-model: neural_network # linear_regression or neural_network, depdending on which model to use
+model: linear_regression # linear_regression/neural_network/support_vector_regression, depdending on which model to use
 
 trainer: SGD
 
@@ -25,4 +25,8 @@ random_state: 234
 # New architecture parameters for neural network
 architecture: [4, 5, 1] # 4 input features, 5 neurons in hidden layer, 1 output
 
-# should activation functions be defined here?
+# SVR Parameters 
+svr_parameters:
+  C: 1.0 # Regularization parameter
+  kernel: rbf # Kernel type - 'rbf' is common for non-linear problems
+  gamma: 0.1 # Kernel coefficient for 'rbf'
