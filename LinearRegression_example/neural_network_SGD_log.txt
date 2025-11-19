@@ -26,4 +26,5 @@ Parameter 2 (shape: [1, 5]):
 [[0.21569434420213973, -0.05940738334712237, -0.2213990447669569, -0.21124240914299738, 0.4342992052191056]]
 Parameter 3 (shape: [1]):
 [0.29827974471098856]
-Loss function value after 500 iterations is : 723.0253416639839
+Loss function value after 500 iterations is : 723.0253416639839---------------------------------------------------
+Cross-Validation not performed.

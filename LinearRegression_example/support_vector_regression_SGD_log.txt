@@ -1,0 +1,16 @@
+### Log file ###
+
+ML model used: support_vector_regression
+
+Initial Parameters:
+Model Parameters (SVR):
+C: 1.0
+Kernel: rbf
+Gamma: 0.1
+
+
+SVR final results (analytical model
+Model training; completed during initialization.
+Iterative training not applicable for SVR.
+---------------------------------------------------
+Cross-Validation not performed.
