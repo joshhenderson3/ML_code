@@ -46,7 +46,7 @@ class Trainer:
         all_fold_losses (list): List of loss values for each fold.
         '''
         #KFold ensures deterministic (reproducible) splits across CV runs/folds
-        kf = KFold(n_splits=n_splits, shuffle=True, random_state=234)
+        kf = KFold(n_splits=n_splits, shuffle=True, random_state=234) #THIS SEED IS HARDCODED!
         all_fold_losses = []
         criterion = nn.MSELoss()
 
