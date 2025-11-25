@@ -1,22 +1,22 @@
 import pandas as pd
 import numpy as np
 import torch
-import torch.nn as nn # New import for neural networks
-from sklearn.svm import SVR # New import for support vector regression
-from sklearn.preprocessing import StandardScaler # For feature scaling
+import torch.nn as nn  # New import for neural networks
+from sklearn.svm import SVR  # New import for support vector regression
+from sklearn.preprocessing import StandardScaler  # For feature scaling
 
 
 class Models:
-    '''
-    Parent Class for different ML models. 
+    """
+    Parent Class for different ML models.
     It contains two methods meant to be overriden:
     net_input and predict
-    '''
+    """
 
-    def __init__(self,name):
-        
+    def __init__(self, name):
+
         self.name = name
-        print(f'Model choosen: {self.name}')
+        print(f"Model chosen: {self.name}")
 
     def net_input(self):
         pass
@@ -24,64 +24,73 @@ class Models:
     def predict(self):
         pass
 
+
 class LinearRegression(Models):
-    '''
-    Child Class for a linear regression model 
-    '''
-    
+    """
+    Child Class for a linear regression model
+    """
+
     def __init__(self, name, X, seed):
-        '''
+        """
         Parameters
         ----------
-        name (str): name of the model 
+        name (str): name of the model
         X (torch tensor): dim = nxm with n number of points (rows) and m number of features (columns)
         seed (int): seed for random number generator for initial values of weights and bias
-        '''
-        super().__init__(name) # inheriting all the Parent Class methods
-        self.seed = seed # Save seed for re-initialisation in cross validation
-        torch.manual_seed(seed) # setting the random number generator with the seed for reproducibility
+        """
+        super().__init__(name)  # inheriting all the Parent Class methods
+        self.seed = seed  # Save seed for re-initialisation in cross validation
+        torch.manual_seed(
+            seed
+        )  # setting the random number generator with the seed for reproducibility
 
-        self.weights = torch.rand((X.shape[1],1),requires_grad=True, dtype=torch.double) # initial values of weights w
-        self.bias = torch.rand((1,1),requires_grad=True, dtype=torch.double) # initial value of the coefficient b
-        self.train_parameters = [self.weights,self.bias]
-    
-    def net_input(self,X):
-        '''
+        self.weights = torch.rand(
+            (X.shape[1], 1), requires_grad=True, dtype=torch.double
+        )  # initial values of weights w
+        self.bias = torch.rand(
+            (1, 1), requires_grad=True, dtype=torch.double
+        )  # initial value of the coefficient b
+        self.train_parameters = [self.weights, self.bias]
+
+    def net_input(self, X):
+        """
         Method for calculating the input for the training or for a more complicated ML model (ANN)
         Parameters
         ----------
         X (torch tensor): dim = nxm with n number of points (rows) and m number of features (columns)
-        '''
+        """
 
-        return torch.matmul(X,self.weights) + self.bias
-    
-    def predict(self,X):
-        '''
+        return torch.matmul(X, self.weights) + self.bias
+
+    def predict(self, X):
+        """
         Method for applying the ML model in a predictive way
         Parameters
         ----------
         X (torch tensor): dim = nxm with n number of points (rows) and m number of features (columns)
-        '''
-        
+        """
+
         prediction = self.net_input(X)
         return prediction
-    
+
+
 # Linear Regression remains unchanged
 
+
 class NeuralNetwork(Models, nn.Module):
-    '''
-    Child class for a feed-forward nerual network model 
-    '''
+    """
+    Child class for a feed-forward nerual network model
+    """
 
     def __init__(self, name, X, seed, architecture):
-        '''
+        """
         Parameters
         ----------
         name (str): name of the model
         X (torch tensor): dim = nxm with n number of points (rows) and m number of features (columns)
         seed (int): seed for random number generator for reproducibility
         architecture (list): list containing the number of neurons in each layer (given in input.yml)
-        '''
+        """
 
         # Initialise parent classes
         Models.__init__(self, name)
@@ -104,7 +113,7 @@ class NeuralNetwork(Models, nn.Module):
             out_features = architecture[i + 1]
 
             # Create linear layer
-            layers.append(nn.Linear(in_features, out_features, dtype = torch.double))
+            layers.append(nn.Linear(in_features, out_features, dtype=torch.double))
 
             # Add activation function (ReLU) except for the last layer
             if i < len(architecture) - 2:
@@ -116,38 +125,39 @@ class NeuralNetwork(Models, nn.Module):
         # The parameters list is required for the trainer class (weights/bias for each layer)
         self.train_parameters = list(self.network.parameters())
 
-    def net_input(self,X):
-        '''
+    def net_input(self, X):
+        """
         Method for calculating the forward pass through the neural network
-        '''
+        """
 
         # Call the network on input tensor X
         return self.network(X)
-    
-    def predict(self,X):
-        '''
+
+    def predict(self, X):
+        """
         Method for applying the neural network in a predictive way
-        '''
+        """
 
         # X (tensor): dim = nxm with n number of points (rows) and m number of features (columns)
         prediction = self.net_input(X)
         return prediction
-    
+
     def forward(self, X):
-        '''
+        """
         Standard PyTorch method for the forward pass, calls the predict method
-        '''
+        """
         return self.predict(X)
+
 
 # NEw: Support Vector Regression Child Class
 class SupportVectorRegression(Models):
-    '''
+    """
     Child class for Support Vector Regression (SVR) model
     Uses scikit-learn's SVR implementation
-    '''
+    """
 
-    def __init__ (self, name, X_train, y_train, seed, svr_params):
-        '''
+    def __init__(self, name, X_train, y_train, seed, svr_params):
+        """
         Parameters
         ----------
         name (str): name of the model
@@ -155,9 +165,9 @@ class SupportVectorRegression(Models):
         Y_train (numpy array): training labels
         seed (int): seed for random number generator for reproducibility
         svr_params (dict): dictionary containing SVR parameters like C, kernel, gamma
-        '''
+        """
 
-        super().__init__(name) # inheriting all the Parent Class methods
+        super().__init__(name)  # inheriting all the Parent Class methods
 
         # Save parameters and seed for re-initialisation in cross validation
         self.svr_params = svr_params
@@ -178,9 +188,7 @@ class SupportVectorRegression(Models):
 
         # Initialise the SVR model
         self.model = SVR(
-            C=svr_params['C'],
-            kernel=svr_params['kernel'],
-            gamma=svr_params['gamma']
+            C=svr_params["C"], kernel=svr_params["kernel"], gamma=svr_params["gamma"]
         )
 
         # Fit the SVR model
@@ -191,31 +199,29 @@ class SupportVectorRegression(Models):
         # Crucial for compatability: no PyTorch parameters to track/optimise, non-gradient based model
         self.train_parameters = []
 
-    def net_input(self,X):
-        '''
+    def net_input(self, X):
+        """
         Method for calculating the scaled feature imput (NumPy array output)
-        '''
+        """
         X_np = X.numpy()
         X_scaled = self.scaler_X.transform(X_np)
         return X_scaled
-    
-    def predict(self,X):
-        '''
+
+    def predict(self, X):
+        """
         Method for applying the SVR model in a predictive way
         Handles scaling, prediction and inverse scaling
-        '''
+        """
 
         X_scaled = self.net_input(X)
         prediction_scaled = self.model.predict(X_scaled)
 
         # Inverse scale the predictions
-        prediction_original = self.scaler_Y.inverse_transform(prediction_scaled.reshape(-1,1))
+        prediction_original = self.scaler_Y.inverse_transform(
+            prediction_scaled.reshape(-1, 1)
+        )
 
         # Convert back to torch tensor
         prediction_tensor = torch.from_numpy(prediction_original).double()
 
         return prediction_tensor
-
-
-
-

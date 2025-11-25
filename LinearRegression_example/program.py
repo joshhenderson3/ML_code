@@ -1,151 +1,217 @@
 from FeaturesExtraction import FeaturesExtraction
 from Models import LinearRegression
-from Models import NeuralNetwork # Importing NeuralNetwork class
-from Models import SupportVectorRegression # Importing the SVR class
+from Models import NeuralNetwork  # Importing NeuralNetwork class
+from Models import SupportVectorRegression  # Importing the SVR class
 from Trainer import Trainer
 import numpy as np
 import matplotlib.pyplot as plt
 import sklearn
+from sklearn.model_selection import cross_val_score  # SVR specific cross-validation
 
 
 from InputReader import InputReader
 from Logger import Logger
 
 
-
 # Reading the input file (*.yml file)
-inp = InputReader('input.yml')
+inp = InputReader("input.yml")
 inp_read = inp.yml_reader()
-eta = inp_read.content['eta']
-n_iter = inp_read.content['n_iter']
-random_state = inp_read.content['random_state']
-model_name = inp_read.content['model'] # 'LinearRegression' or 'NeuralNetwork'
-model_arch = inp_read.content.get('architecture', None) # Get architecture if it exists, NN only
+eta = inp_read.content["eta"]
+n_iter = inp_read.content["n_iter"]
+random_state = inp_read.content["random_state"]
+model_name = inp_read.content["model"]  # 'LinearRegression' or 'NeuralNetwork'
+model_arch = inp_read.content.get(
+    "architecture", None
+)  # Get architecture if it exists, NN only
 
 # Extracting features and labels
-features_extract = FeaturesExtraction(inp_read.content['datafile_name']) # creating class instance
-features_extract.data_analysis() # storing information of the database
-[labs_np, feats_np] = features_extract.feature_extraction(inp_read.content['label'],inp_read.content['features']) # extraction of features and labels
+features_extract = FeaturesExtraction(
+    inp_read.content["datafile_name"]
+)  # creating class instance
+features_extract.data_analysis()  # storing information of the database
+[labs_np, feats_np] = features_extract.feature_extraction(
+    inp_read.content["label"], inp_read.content["features"]
+)  # extraction of features and labels
 
 # 1. Convert full dataset NumPy arrays to Tensors for Cross-Validation (CV)
 # Uses the full dataset (test_ratio=0.0) converted to Tensors.
 X_full, _, Y_full, _ = features_extract.data_split(
-    feats_np, labs_np, 
-    test_ratio=0.0, 
-    random_state=random_state
+    feats_np, labs_np, test_ratio=0.0, random_state=random_state
 )
 
-#Train Test Split Implementation; Split and Tensor Conversion
+# Train Test Split Implementation; Split and Tensor Conversion
 X_train, X_test, y_train, y_test = features_extract.data_split(
-    feats_np, labs_np, 
-    test_ratio=inp_read.content['test_split_ratio'], 
-    random_state=inp_read.content['random_state']
+    feats_np,
+    labs_np,
+    test_ratio=inp_read.content["test_split_ratio"],
+    random_state=inp_read.content["random_state"],
 )
 
 # Model
-#hashed#lr_model1 = LinearRegression(inp_read.content['model'], X_train, random_state) # instance of a linear regression model
-#hashed#lr_model2 = LinearRegression(inp_read.content['model'],X_train, random_state) # other instance only for demonstartion purposes
-if model_name.lower() == 'linear_regression':
-    ml_model1 = LinearRegression('Linear Regression SGD', X_train, random_state) # instance of a linear regression model
-    ml_model2 = LinearRegression('Linear Regression GD', X_train, random_state) # other instance only for demonstartion purposes
+# hashed#lr_model1 = LinearRegression(inp_read.content['model'], X_train, random_state) # instance of a linear regression model
+# hashed#lr_model2 = LinearRegression(inp_read.content['model'],X_train, random_state) # other instance only for demonstartion purposes
 
-elif model_name.lower() == 'neural_network':
+is_svr = False  # Flag to indicate if SVR model is used
+
+if model_name.lower() == "linear_regression":
+    ml_model1 = LinearRegression(
+        "Linear Regression SGD", X_train, random_state
+    )  # instance of a linear regression model
+    ml_model2 = LinearRegression(
+        "Linear Regression GD", X_train, random_state
+    )  # other instance only for demonstartion purposes
+
+elif model_name.lower() == "neural_network":
     if model_arch is None:
-        raise ValueError("Architecture must be specified for Neural Network model in input.yml")
-    # Prepend the input feature size to the architecture
-    input_size = X_train.shape[1]
-    full_arch = [input_size] + model_arch[1:] # Ensure input layer size matches feature count
+        raise ValueError(
+            "Architecture must be specified for Neural Network model in input.yml"
+        )
 
-    ml_model1 = NeuralNetwork(model_name, X_train, random_state, full_arch)
+    ml_model1 = NeuralNetwork(model_name, X_train, random_state, model_arch)
     # Create a second instance for GD training plot
-    ml_model2 = NeuralNetwork(model_name, X_train, random_state, full_arch)
+    ml_model2 = NeuralNetwork(model_name, X_train, random_state, model_arch)
 
-elif inp_read.content['model'] == 'support_vector_regression':
-    # Pass training data (X_train, y_train) and SVR parameters from input.yml
+elif inp_read.content["model"] == "support_vector_regression":
+    # Logic for Support Vector Regression model
 
+    is_svr = True
     ml_model1 = SupportVectorRegression(
-        inp_read.content['model'],
+        inp_read.content["model"],
         X_train,
         y_train,
-        inp_read.content['random_state'],
-        inp_read.content['svr_parameters']
+        inp_read.content["random_state"],
+        inp_read.content["svr_parameters"],
     )
-
-    ml_model2 = ml_model1 # SVR is non-gradient based; same instance used
-    # should avoid errors in rainer/logger classes
 
 else:
     raise ValueError(f"Unsupported model type: {model_name}")
 
-# Training
-trainer1 = Trainer(inp_read.content['trainer'],ml_model1,inp_read.content['eta'],inp_read.content['n_iter']) # instance of training class
-trainer2 = Trainer('GD_Custom',ml_model2,inp_read.content['eta'],inp_read.content['n_iter'])
-# lr_model changed to ml_model
+# Separate paths for SVR and Other Models
 
-# --- START CROSS-VALIDATION ---
-print("\n*** Starting Cross-Validation for SGD Model Performance Estimate ***")
-# Note: trainer1 model is repeatedly re-initialized inside cross_validate for fairness
-avg_cv_loss, cv_losses = trainer1.cross_validate(X_full, Y_full, n_splits=5)
-print(f"Final Average Cross-Validation Loss (5-Fold MSE): {avg_cv_loss:.6f}")
-# --- END CROSS-VALIDATION ---
 
-#[labs, feats] = features_extract.feature_extraction(label_name,names)
-#[labs2, feats2] = features_extract.feature_extraction(label_name,names)
+# --------------------------------------------
+# SVR Model Path
+# --------------------------------------------
+if is_svr:
+    print(f"\n Running {model_name}")
 
-log = Logger(ml_model1,trainer1) # lr_model changed to ml_model
+    # 1. Cross-Validation using scikit-learn's cross_val_score
+    print("SVR Cross Validation")
+    # We can access the underlying sklearn SVR model
+    if isinstance(ml_model1, SupportVectorRegression):
 
-# set calculated CV loss attribute in the logger object
-log.avg_cv_loss = float(avg_cv_loss)
-log.log('w')
+        try:
+            scores = cross_val_score(
+                ml_model1.model,
+                X_full.detach().numpy(),
+                Y_full.detach().numpy(),
+                cv=5,
+                scoring="neg_mean_squared_error",
+            )
+            avg_cv_loss = -np.mean(scores)
+            print(
+                f"Final Average Cross-Validation Loss (5-Fold MSE): {avg_cv_loss:.6f}"
+            )
+        except AttributeError:
+            print("Could not run cross-validation: underlying model not found.")
+            avg_cv_loss = 0.0
 
-train1 = trainer1.training(X_train, y_train) # stochastic gradient descent training
-train2 = trainer2.gd_optim(X_train, y_train) # gradient descent training
+    else:  # Fallback
+        print("Model flag was SVR, but object type is not SupportVectorRegression.")
+        avg_cv_loss = 0.0
 
-# Second part of the log file
-log = Logger(ml_model1, trainer1) # lr_model changed to ml_model
-log.log('a')
+    # 2. Prediction
+    prediction_test = ml_model1.predict(X_test)
+    print("SVR skipping Loss Plotting as training is non-iterative.")
 
-# Plot of the training
-fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(10, 4))
 
-#Plot SDG Loss, using results from the train1
-ax[0].plot(range(1, len(train1.losses) + 1), np.log10(train1.losses), marker='o')
-ax[0].set_xlabel('Number of iter')
-ax[0].set_ylabel('Log(Mean Squared Error)')
-ax[0].set_title(f'Stocastic Gradient Descent for {model_name}') #model_name used here
+# --------------------------------------------
+# Other Models Path (Linear Regression, Neural Network)
+# --------------------------------------------
+else:
+    # Training
+    trainer1 = Trainer(
+        inp_read.content["trainer"],
+        ml_model1,
+        inp_read.content["eta"],
+        inp_read.content["n_iter"],
+    )  # instance of training class
+    trainer2 = Trainer(
+        "GD_Custom", ml_model2, inp_read.content["eta"], inp_read.content["n_iter"]
+    )
+    # lr_model changed to ml_model
 
-#Plot GD Loss, using results from train2
-ax[1].plot(range(1, len(train2.losses) + 1), np.log10(train2.losses), marker='o')
-ax[1].set_xlabel('Number of iter')
-ax[1].set_ylabel('Log(Mean Squared Error)')
-ax[1].set_title(f'Batch Gradient Descent for {model_name}') #model_name used here
-plt.show()
+    # --- START CROSS-VALIDATION ---
+    print("\n*** Starting Cross-Validation for SGD Model Performance Estimate ***")
+    # Note: trainer1 model is repeatedly re-initialized inside cross_validate for fairness
+    avg_cv_loss, cv_losses = trainer1.cross_validate(X_full, Y_full, n_splits=5)
+    print(f"Final Average Cross-Validation Loss (5-Fold MSE): {avg_cv_loss:.6f}")
+    # --- END CROSS-VALIDATION ---
 
-# prediction of the model trained with a "good" learning rate
-#prediction = test1.predict(feats)
-prediction_test = ml_model1.predict(X_test) ##changed to predict on unseen testing data
-# lr_model changed to ml_model
+    # [labs, feats] = features_extract.feature_extraction(label_name,names)
+    # [labs2, feats2] = features_extract.feature_extraction(label_name,names)
 
-#Convert Tensors to Numpy for plotting
+    log = Logger(ml_model1, trainer1)  # lr_model changed to ml_model
+    # set calculated CV loss attribute in the logger object
+    log.avg_cv_loss = float(avg_cv_loss)
+    log.log("w")
+
+    train1 = trainer1.training(X_train, y_train)  # stochastic gradient descent training
+    train2 = trainer2.gd_optim(X_train, y_train)  # gradient descent training
+
+    # Second part of the log file
+    log = Logger(ml_model1, trainer1)  # lr_model changed to ml_model
+    log.log("a")
+
+    # Plot of the training
+    fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(10, 4))
+
+    # Plot SDG Loss, using results from the train1
+    ax[0].plot(range(1, len(train1.losses) + 1), np.log10(train1.losses), marker="o")
+    ax[0].set_xlabel("Number of iter")
+    ax[0].set_ylabel("Log(Mean Squared Error)")
+    ax[0].set_title(
+        f"Stocastic Gradient Descent for {model_name}"
+    )  # model_name used here
+
+    # Plot GD Loss, using results from train2
+    ax[1].plot(range(1, len(train2.losses) + 1), np.log10(train2.losses), marker="o")
+    ax[1].set_xlabel("Number of iter")
+    ax[1].set_ylabel("Log(Mean Squared Error)")
+    ax[1].set_title(f"Batch Gradient Descent for {model_name}")  # model_name used here
+    plt.show()
+
+    # prediction of the model trained with a "good" learning rate
+    # prediction = test1.predict(feats)
+    prediction_test = ml_model1.predict(
+        X_test
+    )  ##changed to predict on unseen testing data
+    # lr_model changed to ml_model
+
+# Convert Tensors to Numpy for plotting
 y_test_np = y_test.detach().numpy()
 prediction_test_np = prediction_test.detach().numpy()
 
-#plt.scatter(labs,prediction)
-plt.scatter(y_test_np,prediction_test_np) ##compare true vs predicted for test data
+# plt.scatter(labs,prediction)
+plt.scatter(y_test_np, prediction_test_np)  ##compare true vs predicted for test data
 
-#Compare true vs predicted values for test data
+# Compare true vs predicted values for test data
 plt.scatter(y_test_np, prediction_test_np)
 
-#Plot the 1:1 line for visual reference: this line represents where the prediction = the true value
-plt.plot(np.linspace(min(y_test_np), max(y_test_np)), np.linspace(min(y_test_np), max(y_test_np)), color='r')
-plt.xlabel('True Values')
-plt.ylabel('Predicted Values')
+# Plot the 1:1 line for visual reference: this line represents where the prediction = the true value
+plt.plot(
+    np.linspace(min(y_test_np), max(y_test_np)),
+    np.linspace(min(y_test_np), max(y_test_np)),
+    color="r",
+)
+plt.xlabel("True Values")
+plt.ylabel("Predicted Values")
 plt.grid()
-plt.title('Prediction vs True Values on Test Data, {model_name} SGD Trained Model')
+plt.title(f"Prediction vs True Values on Test Data: {model_name}")
 plt.show()
 
 
-'''
+"""
 # Prediction of the model trained with stochastic gradient descent
 prediction = ml_model1.predict(feats)
 
@@ -155,9 +221,9 @@ plt.xlabel('true values')
 plt.ylabel('predicted values')
 plt.grid()
 plt.show()
-'''
+"""
 
-'''
+"""
 # example of a training with a "good" learning rate
 #test1 = LinearRegressionGD(eta1,n_iter).fit(feats,labs) --- original line
 test1 = LinearRegressionGD(eta1, n_iter).fit(X_train, y_train) ##changed to use training data from split
@@ -181,6 +247,4 @@ ax[1].set_xlabel('Number of iter')
 ax[1].set_ylabel('log(Mean squared error)')
 ax[1].set_title(f'gradient descent')
 plt.show()
-'''
-
-
+"""
