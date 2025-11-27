@@ -6,7 +6,9 @@ from Trainer import Trainer
 import numpy as np
 import matplotlib.pyplot as plt
 import sklearn
+import torch
 from sklearn.model_selection import cross_val_score  # SVR specific cross-validation
+from sklearn.preprocessing import StandardScaler
 
 
 from InputReader import InputReader
@@ -46,6 +48,51 @@ X_train, X_test, y_train, y_test = features_extract.data_split(
     test_ratio=inp_read.content["test_split_ratio"],
     random_state=inp_read.content["random_state"],
 )
+# --------------------------------------------------------------
+# Scaling for NN and LR Models (Features X and Labels Y)
+# --------------------------------------------------------------
+
+# Initialise two separate scalers
+scaler_X = StandardScaler()
+scaler_y = StandardScaler()
+
+# ONly apply external scaling if NOT using SVR
+# SVR has built-in scaling via sklearn
+if model_name != "support_vector_regression":
+    print("\n Applying Standard Scaling to Features for LR and NN Models")
+
+    # Scale Features X
+    # 1. Fit the scaler only on the training data - convert Tensor to numpy, fit and then transform
+    X_train_scaled = scaler_X.fit_transform(X_train.numpy())
+
+    # 2. Transform the test data, using the training scaler
+    X_test_scaled = scaler_X.transform(X_test.numpy())
+
+    # 3. Transform X_full for the CV step later
+    X_full_scaled = scaler_X.transform(X_full.numpy())
+
+    # 4. Convert back to Tensors
+    X_train = torch.tensor(X_train_scaled, dtype=torch.double)
+    X_test = torch.tensor(X_test_scaled, dtype=torch.double)
+    X_full = torch.tensor(X_full_scaled, dtype=torch.double)
+
+    # Scale Labels Y
+    # 1. Reshape Y to (N, 1), standard scaler expects 2D input
+    y_train_np = y_train.numpy().reshape(-1, 1)
+    y_test_np = y_test.numpy().reshape(-1, 1)
+    Y_full_np = Y_full.numpy().reshape(-1, 1)
+
+    # 2 . Fit the scaler only on the training labels
+    y_train_scaled = scaler_y.fit_transform(y_train_np)
+    y_test_scaled = scaler_y.transform(y_test_np)
+    Y_full_scaled = scaler_y.transform(Y_full_np)
+
+    # 3. Convert back to Tensors
+    y_train = torch.tensor(y_train_scaled, dtype=torch.double).view(-1, 1)
+    y_test = torch.tensor(y_test_scaled, dtype=torch.double).view(-1, 1)
+    Y_full = torch.tensor(Y_full_scaled, dtype=torch.double).view(-1, 1)
+# --------------------------------------------
+
 
 # Model
 # hashed#lr_model1 = LinearRegression(inp_read.content['model'], X_train, random_state) # instance of a linear regression model
@@ -104,7 +151,7 @@ if is_svr:
             scores = cross_val_score(
                 ml_model1.model,
                 X_full.detach().numpy(),
-                Y_full.detach().numpy(),
+                Y_full.detach().numpy().ravel(),
                 cv=5,
                 scoring="neg_mean_squared_error",
             )
@@ -188,6 +235,49 @@ else:
     )  ##changed to predict on unseen testing data
     # lr_model changed to ml_model
 
+# -------------------------------------------------------------
+# Final Evaluation and Plotting
+# -------------------------------------------------------------
+# If SVR - it is already in real units, which is handled in the class
+# If LR or NN - inverse transform the scaled predictions and true values back to original units
+
+if model_name != "support_vector_regression":
+    # Inverse transform to get back to mmol/g
+    prediction_final = scaler_y.inverse_transform(prediction_test.detach().numpy())
+    y_test_final = scaler_y.inverse_transform(y_test.detach().numpy())
+else:
+    # SVR case - no scaling to reverse
+    prediction_final = prediction_test.detach().numpy()
+    y_test_final = y_test.detach().numpy()
+
+# Calculate final test MSE loss
+final_mse = np.mean((y_test_final - prediction_final) ** 2)
+print(f"\nFinal Test Loss (MSE) on Unseen Data: {final_mse:.6f}")
+
+# Plotting Predictions vs True Values
+plt.figure(figsize=(6, 6))
+plt.scatter(y_test_final, prediction_final, alpha=0.7)
+
+# Plot the 1:1 line for visual reference: this line represents where the prediction = the true value
+min_val = min(np.min(y_test_final), np.min(prediction_final))
+max_val = max(np.max(y_test_final), np.max(prediction_final))
+plt.plot(
+    [min_val, max_val],
+    [min_val, max_val],
+    color="r",
+    linestyle="--",
+    label="Ideal Prediction",
+)
+
+plt.xlabel("True Values (mmol/g)")
+plt.ylabel("Predicted Values (mmol/g)")
+plt.title(f"Prediction vs True Values on Test Data: {model_name}")
+plt.grid(True)
+plt.legend()
+plt.show()
+
+
+"""
 # Convert Tensors to Numpy for plotting
 y_test_np = y_test.detach().numpy()
 prediction_test_np = prediction_test.detach().numpy()
@@ -209,7 +299,7 @@ plt.ylabel("Predicted Values")
 plt.grid()
 plt.title(f"Prediction vs True Values on Test Data: {model_name}")
 plt.show()
-
+"""
 
 """
 # Prediction of the model trained with stochastic gradient descent
