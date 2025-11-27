@@ -11,12 +11,12 @@ Parameter 1 (shape: [1, 1]):
 Training algorithm: SGD
 
 Hyperparameters:
-Eta: 1e-15
+Eta: 0.01
 Training results:
 
 Parameter 0 (shape: [1, 1]):
-[[0.4211161054454088]]
+[[0.6659371533802715]]
 Parameter 1 (shape: [1, 1]):
-[[0.7696858122975446]]
-Loss function value after 150 iterations is : 25.463976497211277---------------------------------------------------
+[[0.03642930709467985]]
+Loss function value after 151 iterations is : 0.5417159217251342---------------------------------------------------
 Cross-Validation not performed.
