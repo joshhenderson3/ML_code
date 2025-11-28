@@ -4,15 +4,15 @@ datafile_name: test_data.csv
 
 features: 
   - BET-sa-(m2/g)
- # - pore-volume-(cm3/g)
- # - pore-diameter-(A)
- # - density-(g/cm3)
- # - T-(K)
- # - P-(bar)
+  - pore-volume-(cm3/g)
+  - pore-diameter-(A)
+  - density-(g/cm3)
+  - T-(K)
+  - P-(bar)
 
 label: CO2-uptake-(mmol/g)
 
-model: support_vector_regression # linear_regression/neural_network/support_vector_regression, depdending on which model to use
+model: neural_network # linear_regression/neural_network/support_vector_regression, depdending on which model to use
 
 trainer: SGD
 
@@ -25,7 +25,7 @@ test_split_ratio: 0.8 #New parameter for test Split/Cross Validation ratio, 80/2
 random_state: 234
 
 # New architecture parameters for neural network
-architecture: [1, 5, 1] # 1 input features, 5 neurons in hidden layer, 1 output
+architecture: [6, 5, 1] # 1 input features, 5 neurons in hidden layer, 1 output
 
 # SVR Parameters 
 svr_parameters:
