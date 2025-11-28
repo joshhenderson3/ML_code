@@ -9,8 +9,6 @@ import sklearn
 import torch
 from sklearn.model_selection import cross_val_score  # SVR specific cross-validation
 from sklearn.preprocessing import StandardScaler
-
-
 from InputReader import InputReader
 from Logger import Logger
 
