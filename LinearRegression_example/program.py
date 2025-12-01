@@ -180,9 +180,14 @@ else:
         ml_model1,
         inp_read.content["eta"],
         inp_read.content["n_iter"],
+        inp_read.content["batch_size"],
     )  # instance of training class
     trainer2 = Trainer(
-        "GD_Custom", ml_model2, inp_read.content["eta"], inp_read.content["n_iter"]
+        "GD_Custom",
+        ml_model2,
+        inp_read.content["eta"],
+        inp_read.content["n_iter"],
+        inp_read.content["batch_size"],
     )
     # lr_model changed to ml_model
 
@@ -201,8 +206,10 @@ else:
     log.avg_cv_loss = float(avg_cv_loss)
     log.log("w")
 
-    train1 = trainer1.training(X_train, y_train)  # stochastic gradient descent training
-    train2 = trainer2.gd_optim(X_train, y_train)  # gradient descent training
+    train1 = trainer1.training(
+        X_test, y_test, X_train, y_train
+    )  # stochastic gradient descent training
+    # train2 = trainer2.gd_optim(X_test, y_test, X_train, y_train)  # gradient descent training
 
     # Second part of the log file
     log = Logger(ml_model1, trainer1)  # lr_model changed to ml_model
@@ -212,18 +219,22 @@ else:
     fig, ax = plt.subplots(nrows=1, ncols=2, figsize=(10, 4))
 
     # Plot SDG Loss, using results from the train1
-    ax[0].plot(range(1, len(train1.losses) + 1), np.log10(train1.losses), marker="o")
+    ax[0].plot(
+        range(1, len(train1.avg_losses) + 1), np.log10(train1.avg_losses), marker="o"
+    )
     ax[0].set_xlabel("Number of iter")
     ax[0].set_ylabel("Log(Mean Squared Error)")
     ax[0].set_title(
-        f"Stocastic Gradient Descent for {model_name}"
+        f"Average Training Losses with GD for {model_name}"
     )  # model_name used here
 
     # Plot GD Loss, using results from train2
-    ax[1].plot(range(1, len(train2.losses) + 1), np.log10(train2.losses), marker="o")
+    ax[1].plot(
+        range(1, len(train1.test_losses) + 1), np.log10(train1.test_losses), marker="o"
+    )
     ax[1].set_xlabel("Number of iter")
     ax[1].set_ylabel("Log(Mean Squared Error)")
-    ax[1].set_title(f"Batch Gradient Descent for {model_name}")  # model_name used here
+    ax[1].set_title(f"Test Losses for {model_name}")  # model_name used here
     plt.show()
 
     # prediction of the model trained with a "good" learning rate

@@ -3,9 +3,9 @@ import numpy as np
 import torch
 from torch import nn
 import torch.optim as optim
+from torch.utils.data import DataLoader, TensorDataset
 from sklearn.model_selection import KFold  # <-- NEW IMPORT
 from Models import LinearRegression
-from Models import NeuralNetwork
 
 
 class Trainer:
@@ -13,7 +13,7 @@ class Trainer:
     Class for training different ML models utilising different optimisation algorithms
     """
 
-    def __init__(self, name, model_obj, eta, n_iter):
+    def __init__(self, name, model_obj, eta, n_iter, batch_size):
         """
         parameters
         ----------
@@ -26,6 +26,7 @@ class Trainer:
         self.model_obj = model_obj
         self.eta = eta
         self.n_iter = n_iter
+        self.batch_size = batch_size
 
     # Cross-Validation Method
 
@@ -98,16 +99,19 @@ class Trainer:
                 )
 
                 # 3. Initialise a new Trainer for the new model
-            new_trainer = Trainer(self.name, new_model, self.eta, self.n_iter)
-            new_trainer.training(X_train_fold, y_train_fold)
+            new_trainer = Trainer(
+                self.name, new_model, self.eta, self.n_iter, self.batch_size
+            )
+            new_trainer.training(X_val_fold, y_val_fold, X_train_fold, y_train_fold)
             # End of initialisation
 
             # 4. Evaluate the Model on the validation set
             with torch.no_grad():
                 output = new_model.predict(X_val_fold)
                 val_loss = criterion(output, y_val_fold).item()
+
             all_fold_losses.append(val_loss)
-            print(f"Fold {fold+1} Validation Loss (MSE): {val_loss:.6f}")
+            print(f" Validation Loss (MSE): {val_loss:.6f}")
 
         avg_loss = np.mean(all_fold_losses)
         print(f"\nAverage Cross-Validation Loss {n_splits} folds (MSE): {avg_loss:.6f}")
@@ -121,17 +125,59 @@ class Trainer:
         """
         if self.name == "SGD":
 
-            self.optimiser = optim.SGD(self.model_obj.train_parameters, self.eta)
+            self.optimiser = optim.SGD(
+                self.model_obj.train_parameters, self.eta
+            )  # change made here
             print("The optimiser is Stochastic Gradient Descent")
 
         elif self.name == "Adam":
 
-            self.optimiser = optim.Adam(self.model_obj.train_parameters, self.eta)
+            self.optimiser = optim.Adam(
+                self.model_obj.train_parameters, self.eta
+            )  # change made here
             print("The optimiser is Adam")
 
         return self
 
-    def training(self, X, y):
+    def training(self, X_test, y_test, X_train, y_train):
+        """
+        Method that train the ML model using the selected optimiser as implemented in PyTorch
+        Parameters
+        ----------
+        X (torch tensor): dim = nxm with n number of points (rows) and m number of features (columns)
+        y (torch tensor): dim = nx1 with n number of labeled points
+        """
+        custom_dataset = TensorDataset(X_train, y_train)
+        train_loader = DataLoader(
+            custom_dataset, batch_size=self.batch_size, shuffle=True
+        )
+
+        self.avg_losses = []  # losses array initialisation
+        self.test_losses = []
+        criterion = nn.MSELoss()  # loss function Mean Square Error
+
+        self.optim_selection()
+        # training routine
+        for i in range(self.n_iter):
+            running_loss = 0.0
+            for batch_idx, (inputs, labels) in enumerate(train_loader):
+                self.optimiser.zero_grad()  # zeroing gradients
+                output = self.model_obj.net_input(inputs)
+                loss = criterion(output, labels)
+                loss.backward()  # calculate gradients
+                self.optimiser.step()  # updating parameters
+                running_loss += loss.item()
+            avg_loss = running_loss / len(train_loader)
+            output_test = self.model_obj.net_input(X_test)
+            test_loss = criterion(output_test, y_test)
+            self.avg_losses.append(avg_loss)
+            self.test_losses.append(test_loss.item())
+            print(f"Iter [{i+1}/{self.n_iter}], Loss: {avg_loss:.4f}")
+        print("Training complete.")
+        return self
+
+    '''
+    def training(self, X_test, y_test, X_train, y_train): #change made here
         """
         Method that train the ML model using the selected optimiser as implemented in PyTorch
         Parameters
@@ -140,7 +186,11 @@ class Trainer:
         y (torch tensor): dim = nx1 with n number of labeled points
         """
 
-        self.losses = []  # losses array initialisation
+        custom_dataset = TensorDataset(X_train, y_train) #change made here 
+        train_loader = DataLoader(custom_dataset, batch_size=self.batch_size, shuffle = True) #change made here
+
+        self.avg_losses = []  # losses array initialisation
+        self.test_losses = [] #change made here
         criterion = nn.MSELoss()  # loss function Mean Square Error
 
         self.optim_selection()
@@ -154,6 +204,8 @@ class Trainer:
             self.optimiser.step()  # updating parameters
             self.losses.append(loss.item())
         return self
+        '''
+    # ----------------------------------------------------------------------
 
     def gd_optim(self, X, y):
         """

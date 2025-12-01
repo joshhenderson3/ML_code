@@ -18,11 +18,15 @@ trainer: SGD
 
 eta: 0.01 # Learning Rate 
 
-n_iter: 151 # 151 Iterations so that it prints the loss function in batches of 10 up to and including 150
+n_iter: 300 # 151 Iterations so that it prints the loss function in batches of 10 up to and including 150
 
 test_split_ratio: 0.8 #New parameter for test Split/Cross Validation ratio, 80/20 split
 
 random_state: 234
+
+batch_size: 10
+
+
 
 # New architecture parameters for neural network
 architecture: [6, 5, 1] # 1 input features, 5 neurons in hidden layer, 1 output

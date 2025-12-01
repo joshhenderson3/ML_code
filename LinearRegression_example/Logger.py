@@ -63,7 +63,7 @@ class Logger:
 
                     # Final loss for iterative models
                     f.write(
-                        f"Loss function value after {str(self.trainer_obj.n_iter)} iterations is : {str(self.trainer_obj.losses[-1])}"
+                        f"Loss function value after {str(self.trainer_obj.n_iter)} iterations is : {str(self.trainer_obj.avg_losses[-1])}"
                     )
 
                 f.write("---------------------------------------------------\n")
