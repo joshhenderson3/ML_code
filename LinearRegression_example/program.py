@@ -236,6 +236,38 @@ else:
     ax[1].set_ylabel("Log(Mean Squared Error)")
     ax[1].set_title(f"Test Losses for {model_name}")  # model_name used here
     plt.show()
+    # -------------------------------------------------
+    # Overlapped Plot of Training and Test Loss
+    # -------------------------------------------------
+    # New figure and axes oject
+    fi2, ax2 = plt.subplots(nrows=1, ncols=1, figsize=(8, 5))
+
+    # plot training loss
+    ax2.plot(
+        range(1, len(train1.avg_losses) + 1),
+        np.log10(train1.avg_losses),
+        marker="o",
+        linestyle="-",
+        label="Training Loss (AVG Batch MSE)",
+    )
+
+    # plot test/validation loss
+    ax2.plot(
+        range(1, len(train1.test_losses) + 1),
+        np.log10(train1.test_losses),
+        marker="x",
+        linestyle="--",
+        label="Test/Validation Loss (MSE)",
+    )
+
+    ax2.set_xlabel("Number of Iterations")
+    ax2.set_ylabel("Log$_{10}$ (Mean Squared Error)")
+    ax2.set_title(f"Training and Test Loss Convergence for {model_name}")
+    ax2.legend()
+    ax2.grid(True)
+    plt.show()
+    # End of new overlapping plot
+    # -------------------------------------------------
 
     # prediction of the model trained with a "good" learning rate
     # prediction = test1.predict(feats)
